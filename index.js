@@ -4,6 +4,10 @@
  * Copyright(c) 2011 TJ Holowaychuk
  * Copyright(c) 2014-2015 Douglas Christopher Wilson
  * MIT Licensed
+ * 
+ * x-express-session
+ * Copyright(c) 2018 BlueMagnificent
+ * MIT Licensed
  */
 
 'use strict';
@@ -15,8 +19,8 @@
 
 var cookie = require('cookie');
 var crc = require('crc').crc32;
-var debug = require('debug')('express-session');
-var deprecate = require('depd')('express-session');
+var debug = require('debug')('x-express-session');
+var deprecate = require('depd')('x-express-session');
 var parseUrl = require('parseurl');
 var uid = require('uid-safe').sync
   , onHeaders = require('on-headers')
@@ -79,6 +83,7 @@ var defer = typeof setImmediate === 'function'
  * @param {String|Array} [options.secret] Secret for signing session ID
  * @param {Object} [options.store=MemoryStore] Session store
  * @param {String} [options.unset]
+ * @param {String} [options.carrier] Where to store session Id on the client end. Values between ['cookie', 'header', 'both']
  * @return {Function} middleware
  * @public
  */
@@ -112,6 +117,9 @@ function session(options) {
 
   // get the cookie signing secret
   var secret = opts.secret
+
+  //get carrier selection
+  var carrier = opts.carrier
 
   if (typeof generateId !== 'function') {
     throw new TypeError('genid option must be a function');
@@ -212,8 +220,8 @@ function session(options) {
     // expose store
     req.sessionStore = store;
 
-    // get the session ID from the cookie
-    var cookieId = req.sessionID = getcookie(req, name, secrets);
+    // get the session ID from the carrier based on carrier value
+    var sessionId = req.sessionID = getsessionid(req, name, secrets, carrier);
 
     // set-cookie
     onHeaders(res, function(){
@@ -222,14 +230,22 @@ function session(options) {
         return;
       }
 
-      if (!shouldSetCookie(req)) {
-        return;
-      }
+      var shouldsetcookie = false;
 
-      // only send secure cookies via https
-      if (req.session.cookie.secure && !issecure(req, trustProxy)) {
-        debug('not secured');
-        return;
+      if(carrier === 'cookie' || carrier === 'both'){
+
+        shouldsetcookie = shouldSetCookie(req);
+
+        if (!shouldsetcookie && carrier === 'cookie') {
+          return;
+        }
+  
+        // only send secure cookies via https
+        if (req.session.cookie.secure && !issecure(req, trustProxy)) {
+          debug('not secured');
+          return;
+        }
+
       }
 
       if (!touched) {
@@ -238,8 +254,17 @@ function session(options) {
         touched = true
       }
 
-      // set cookie
-      setcookie(res, name, req.sessionID, secrets[0], req.session.cookie.data);
+      // a bit of a nasty condition check pattern
+      if(carrier === 'header' || carrier === 'both'){
+        // set in header
+        setinheader(res, name, req.sessionID, secrets[0]);
+      }
+      
+      if(carrier === 'cookie' || (carrier === 'both' && shouldsetcookie)){
+        // set cookie
+        setcookie(res, name, req.sessionID, secrets[0], req.session.cookie.data);
+      }
+
     });
 
     // proxy end() to commit the session
@@ -419,7 +444,7 @@ function session(options) {
         return false;
       }
 
-      return !saveUninitializedSession && cookieId !== req.sessionID
+      return !saveUninitializedSession && sessionId !== req.sessionID
         ? isModified(req.session)
         : !isSaved(req.session)
     }
@@ -432,7 +457,7 @@ function session(options) {
         return false;
       }
 
-      return cookieId === req.sessionID && !shouldSave(req);
+      return sessionId === req.sessionID && !shouldSave(req);
     }
 
     // determine if cookie should be set on response
@@ -442,7 +467,7 @@ function session(options) {
         return false;
       }
 
-      return cookieId != req.sessionID
+      return sessionId != req.sessionID
         ? saveUninitializedSession || isModified(req.session)
         : rollingSessions || req.session.cookie.expires != null && isModified(req.session);
     }
@@ -502,6 +527,8 @@ function generateSessionId(sess) {
   return uid(24);
 }
 
+
+
 /**
  * Get the session ID cookie from request.
  *
@@ -509,59 +536,60 @@ function generateSessionId(sess) {
  * @private
  */
 
-function getcookie(req, name, secrets) {
-  var header = req.headers.cookie;
+function getsessionid(req, name, secrets, carrier) {
+  var header;
   var raw;
   var val;
 
-  // read from cookie header
+  if(carrier === 'header'){
+    raw = header =  decodeURIComponent(req.headers[name]);
+  }
+  else if(carrier === 'cookie'){
+    header = req.headers.cookie;
+  }
+  else if(carrier === 'both'){
+    header = req.headers.cookie || req.headers[name];
+  }
+
+  // read from cookie header or direct value set in the header
   if (header) {
-    var cookies = cookie.parse(header);
 
-    raw = cookies[name];
-
-    if (raw) {
-      if (raw.substr(0, 2) === 's:') {
-        val = unsigncookie(raw.slice(2), secrets);
-
-        if (val === false) {
-          debug('cookie signature invalid');
-          val = undefined;
-        }
-      } else {
-        debug('cookie unsigned')
-      }
+    if(carrier !== 'header'){
+      var cookies = cookie.parse(header);
+      raw = cookies[name];
     }
+    
+    val = verifyandunsign(raw, secrets)
+
+    if(!val && carrier === 'both'){
+      val = verifyandunsign(req.headers.name);
+    }
+
   }
 
-  // back-compat read from cookieParser() signedCookies data
-  if (!val && req.signedCookies) {
-    val = req.signedCookies[name];
+  return val;
+}
 
-    if (val) {
-      deprecate('cookie should be available in req.headers.cookie');
-    }
-  }
 
-  // back-compat read from cookieParser() cookies data
-  if (!val && req.cookies) {
-    raw = req.cookies[name];
+/**
+ * Verify the Header/Cookie value passed.
+ *
+ * @return {string}
+ * @private
+ */
+function verifyandunsign(input, secrets){
+  var val;
 
-    if (raw) {
-      if (raw.substr(0, 2) === 's:') {
-        val = unsigncookie(raw.slice(2), secrets);
+  if (input) {
+    if (input.substr(0, 2) === 's:') {
+      val = unsigncookie(input.slice(2), secrets);
 
-        if (val) {
-          deprecate('cookie should be available in req.headers.cookie');
-        }
-
-        if (val === false) {
-          debug('cookie signature invalid');
-          val = undefined;
-        }
-      } else {
-        debug('cookie unsigned')
+      if (val === false) {
+        debug('cookie signature invalid');
+        val = undefined;
       }
+    } else {
+      debug('cookie unsigned')
     }
   }
 
@@ -638,6 +666,17 @@ function setcookie(res, name, val, secret, options) {
   var header = Array.isArray(prev) ? prev.concat(data) : [prev, data];
 
   res.setHeader('set-cookie', header)
+}
+
+/**
+ * Set header in response.
+ *
+ * @private
+ */
+
+function setinheader(res, name, val, secret) {
+  var signed = 's:' + signature.sign(val, secret);
+  res.setHeader(name, encodeURIComponent(signed));
 }
 
 /**
