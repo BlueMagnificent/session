@@ -1,6 +1,6 @@
 {
   "name": "x-express-session",
-  "version": "1.20.1",
+  "version": "1.20.2",
   "description": "Fork of express-session with header option included",
   "author": "express-session: TJ Holowaychuk <tj@vision-media.ca> (http://tjholowaychuk.com)",
   "contributors": [
