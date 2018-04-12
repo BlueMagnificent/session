@@ -20,6 +20,6 @@ Please refer to express-session [session(options)](https://github.com/expressjs/
 
 
 ## NOTE!!
-This Fork is the result of a personal need and hence should be expected to work miracles besides what it was intended to do (pass sessionid directly in the header)
+This Fork is the result of a personal need and hence should not be expected to work miracles besides what it was intended to do (pass sessionid directly in the header)
 
 The included test is the default express-session test. None has been added for the modifications done.
