@@ -1,13 +1,14 @@
 {
-  "name": "express-session",
-  "version": "1.15.6",
+  "name": "x-express-session",
+  "version": "1.20.0",
   "description": "Simple session middleware for Express",
   "author": "TJ Holowaychuk <tj@vision-media.ca> (http://tjholowaychuk.com)",
   "contributors": [
     "Douglas Christopher Wilson <doug@somethingdoug.com>",
-    "Joe Wagner <njwjs722@gmail.com>"
+    "Joe Wagner <njwjs722@gmail.com>",
+    "BlueMagnificent"
   ],
-  "repository": "expressjs/session",
+  "repository": "x-express-session",
   "license": "MIT",
   "dependencies": {
     "cookie": "0.3.1",

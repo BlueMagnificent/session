@@ -1,5 +1,5 @@
 
-process.env.NO_DEPRECATION = 'express-session';
+process.env.NO_DEPRECATION = 'x-express-session';
 
 var after = require('after')
 var assert = require('assert')
