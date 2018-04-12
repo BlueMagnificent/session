@@ -1,3 +1,9 @@
+
+1.20.0 / 2018-12-04 (x-express-session)
+=======================================
+
+  * added carrier option to specify where the session id is to be stored on the client end
+
 unreleased
 ==========
 
