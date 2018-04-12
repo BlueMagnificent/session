@@ -98,7 +98,7 @@ function session(options) {
   var generateId = opts.genid || generateSessionId
 
   // get the session cookie name
-  var name = opts.name || opts.key || 'connect.sid'
+  var name = opts.name || opts.key || 'x-express-session'
 
   // get the session store
   var store = opts.store || new MemoryStore()
