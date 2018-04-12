@@ -562,7 +562,7 @@ function getsessionid(req, name, secrets, carrier) {
     val = verifyandunsign(raw, secrets)
 
     if(!val && carrier === 'both'){
-      val = verifyandunsign(req.headers.name);
+      val = verifyandunsign(decodeURIComponent(req.headers[name]), secrets);
     }
 
   }
