@@ -119,7 +119,7 @@ function session(options) {
   var secret = opts.secret
 
   //get carrier selection
-  var carrier = opts.carrier
+  var carrier = opts.carrier || 'cookie'
 
   if (typeof generateId !== 'function') {
     throw new TypeError('genid option must be a function');
