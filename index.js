@@ -551,7 +551,7 @@ function getsessionid(req, name, secrets, carrier) {
     header = req.headers.cookie || req.headers[name];
   }
 
-  // read from cookie header or direct value set in the header
+  // read from cookie header or direct value set in the http header
   if (header) {
 
     if(carrier !== 'header'){
@@ -572,7 +572,7 @@ function getsessionid(req, name, secrets, carrier) {
 
 
 /**
- * Verify the Header/Cookie value passed.
+ * Verify the Http Header/Cookie value passed.
  *
  * @return {string}
  * @private
@@ -669,7 +669,7 @@ function setcookie(res, name, val, secret, options) {
 }
 
 /**
- * Set header in response.
+ * Set http header in response.
  *
  * @private
  */
