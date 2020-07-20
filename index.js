@@ -548,7 +548,7 @@ function getsessionid(req, name, secrets, carrier) {
     header = req.headers.cookie;
   }
   else if(carrier === 'both'){
-    header = req.headers.cookie || req.headers[name];
+    header = req.headers[name] || req.headers.cookie ;
   }
 
   // read from cookie header or direct value set in the http header
